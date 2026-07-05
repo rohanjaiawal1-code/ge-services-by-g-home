@@ -29,25 +29,32 @@ jobs:
           node -e '
             const fs = require("fs");
             const file = "users.json";
-            let data = { videos: {}, users: {} };
+            let data = {};
             
-            // Agar file pehle se hai toh read karo, nahi toh nayi banao
+            // 1. Pehle se maujood users.json ka data safe read karo
             if (fs.existsSync(file)) {
               try {
                 data = JSON.parse(fs.readFileSync(file, "utf8"));
               } catch(e) {
-                console.log("Parsing error, resetting format safely");
+                console.log("Parsing error, creating base structure");
               }
             }
             
-            if (!data.users) data.users = {};
-            if (!data.videos) data.videos = { welcome: [], offline: [], expired: [], ads: [] };
+            // 2. Agar structure missing hai toh safeguard lagao taaki video links na udein
+            if (!data.videos) {
+              data.videos = { welcome: [], offline: [], expired: [], ads: [] };
+            }
+            if (!data.users) {
+              data.users = {};
+            }
             
             const custId = "${{ github.event.inputs.customer_id }}".trim().lower();
             const status = "${{ github.event.inputs.action_type }}";
             
+            // 3. Pehle wale data ko bina chhede, naya user ADD ya CHANGE karo
             data.users[custId] = status;
             
+            // 4. File ko wapas sundar format me save kar do
             fs.writeFileSync(file, JSON.stringify(data, null, 2));
           '
 
@@ -56,6 +63,5 @@ jobs:
           git config --global user.name "GE-Admin-GUI"
           git config --global user.email "admin@ge-home.com"
           git add users.json
-          # Agar koi change nahi hua toh error na de
-          git diff-index --quiet HEAD || git commit -m "GUI Update: ${{ github.event.inputs.customer_id }} set to ${{ github.event.inputs.action_type }}"
+          git diff-index --quiet HEAD || git commit -m "GUI Management: ${{ github.event.inputs.customer_id }} set to ${{ github.event.inputs.action_type }}"
           git push origin main
