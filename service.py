@@ -8,7 +8,7 @@ import json
 import socket
 
 # ==========================================
-# 🔴 CONFIGURATION: APNA GITHUB RAW JSON URL YAHAN DALEIN
+# 🔴 CONFIGURATION: APNA GITHUB RAW JSON URL
 # ==========================================
 GITHUB_JSON_URL = "https://raw.githubusercontent.com/rohanjaiawal1-code/ge-services-by-g-home/refs/heads/main/users.json"
 
@@ -19,13 +19,10 @@ ADDON_PATH = xbmc.translatePath(ADDON.getAddonInfo('path'))
 DIR_WELCOME = os.path.join(ADDON_PATH, "welcome_videos")
 DIR_OFFLINE = os.path.join(ADDON_PATH, "offline_videos")
 DIR_EXPIRED = os.path.join(ADDON_PATH, "expired_videos")
-DIR_ADS     = os.path.join(ADDON_PATH, "ads_videos")
+DIR_ADS = os.path.join(ADDON_PATH, "ads_videos")
 
 def get_device_id():
-    """ 
-    Har device ka ek unique name (Hostname) nikalta hai, 
-    taaki aapko har user ke liye code ke andar naam na badalna pade.
-    """
+    """ Device ka unique Hostname nikalta hai """
     try:
         hostname = socket.gethostname()
         if hostname:
@@ -35,7 +32,7 @@ def get_device_id():
     return "unknown_user"
 
 def get_random_video(folder_path):
-    """ Folder se koi bhi ek random .mp4 video uthane ke liye """
+    """ Folder se random .mp4 file select karne ke liye """
     if os.path.exists(folder_path):
         videos = [f for f in os.listdir(folder_path) if f.lower().endswith('.mp4')]
         if videos:
@@ -43,30 +40,36 @@ def get_random_video(folder_path):
     return ""
 
 def check_user_status():
-    """ GitHub se JSON download karke current device ka status check karta hai """
+    """ GitHub se JSON download karta hai (Bina cache issue ke) """
     device_id = get_device_id()
     try:
+        # Cache se bachne ke liye URL ke end me timestamp laga rahe hain
+        nocache_url = f"{GITHUB_JSON_URL}?t={int(time.time())}"
+        
         req = urllib.request.Request(
-            GITHUB_JSON_URL, 
-            headers={'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+            nocache_url, 
+            headers={
+                'User-Agent': 'Mozilla/5.0',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
         )
         response = urllib.request.urlopen(req, timeout=6)
         data = json.loads(response.read().decode('utf-8'))
         
-        # JSON keys ko lowercase karke match karenge taaki mistake na ho
+        # Keys aur values ko clean aur lowercase karein
         data_clean = {k.strip().lower(): v.strip().lower() for k, v in data.items()}
         
         if device_id in data_clean:
             return data_clean[device_id]
         else:
-            # Agar koi naya user h jiska naam aapne GitHub pe nahi dala, toh wo default lock rahega
-            return "expired"
+            return "expired" # Agar new user list me nahi hai toh auto-lock
     except Exception as e:
         pass
-    return "offline" # Connection fail hone par automatic offline block
+    return "offline" # Internet band hone par auto offline block
 
 def lock_navigation_loop():
-    """ Strict Lock System: User ko settings/home me nahi jaane dega """
+    """ Strict Lock System: User ko settings/home par nahi jaane dega """
     while not xbmc.Monitor().waitForAbort(1):
         status = check_user_status()
         
@@ -87,7 +90,7 @@ def lock_navigation_loop():
         time.sleep(1)
 
 def run_main_workflow():
-    # 1. Boot up validation check
+    # 1. Boot up status validation check
     status = check_user_status()
     if status != "active":
         lock_navigation_loop()
@@ -117,6 +120,6 @@ def run_main_workflow():
     # 4. Redirect to Favourites Window
     xbmc.executebuiltin("ActivateWindow(FavouritesBrowser)")
 
-# Kodi skin load hone ka safe time delay
+# Kodi skin completely load hone ka delay
 time.sleep(4)
 run_main_workflow()
