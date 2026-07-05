@@ -10,7 +10,7 @@ import socket
 # ==========================================
 # 🔴 CONFIGURATION: APNA GITHUB RAW JSON URL YAHAN DALEIN
 # ==========================================
-GITHUB_JSON_URL = "https://raw.githubusercontent.com/rohanjaiawal1-code/ge-services-by-g-home/main/users.json"
+GITHUB_JSON_URL = "https://raw.githubusercontent.com/rohanjaiawal1-code/ge-services-by-g-home/refs/heads/main/users.json"
 
 # Addon Paths Setup
 ADDON = xbmcaddon.Addon()
