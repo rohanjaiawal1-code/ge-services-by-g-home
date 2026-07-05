@@ -1,0 +1,46 @@
+name: GE Services Admin Panel GUI
+
+on:
+  workflow_dispatch:
+    inputs:
+      customer_id:
+        description: 'Customer Device Name / Hostname (e.g., abhishek-tv)'
+        required: true
+        default: 'unknown_user'
+      action_type:
+        description: 'Plan Status Change'
+        required: true
+        type: choice
+        options:
+        - active
+        - expired
+
+jobs:
+  update-status:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Update users.json GUI Engine
+        run: |
+          node -e '
+            const fs = require("fs");
+            let data = JSON.parse(fs.readFileSync("users.json", "utf8"));
+            if (!data.users) data.users = {};
+            
+            const custId = "${{ github.event.inputs.customer_id }}".trim().lower();
+            const status = "${{ github.event.inputs.action_type }}";
+            
+            data.users[custId] = status;
+            
+            fs.writeFileSync("users.json", JSON.stringify(data, null, 2));
+          '
+
+      - name: Commit and Push Changes Live
+        run: |
+          git config --global user.name "GE-Admin-GUI"
+          git config --global user.email "admin@ge-home.com"
+          git add users.json
+          git commit -m "GUI Update: ${{ github.event.inputs.customer_id }} set to ${{ github.event.inputs.action_type }}"
+          git push
