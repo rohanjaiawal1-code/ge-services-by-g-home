@@ -3,12 +3,21 @@ name: GE Services Admin Panel GUI
 on:
   workflow_dispatch:
     inputs:
-      customer_id:
-        description: 'Customer Device Name / Hostname (e.g., abhishek-tv)'
-        required: true
-        default: 'unknown_user'
+      manage_existing:
+        description: 'LIST: Choose Existing User to Update'
+        required: false
+        type: choice
+        options:
+        - '-- select from list or leave blank --'
+        - unknown_user
+      
+      new_customer_id:
+        description: 'ADD NEW USER: Type Hostname here (If not in list)'
+        required: false
+        default: ''
+
       action_type:
-        description: 'Plan Status Change'
+        description: 'SET PLAN STATUS'
         required: true
         type: choice
         options:
@@ -24,44 +33,72 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Update users.json GUI Engine
+      - name: Process GUI Selection
         run: |
           node -e '
             const fs = require("fs");
             const file = "users.json";
-            let data = {};
+            let data = { videos: {}, users: {} };
             
-            // 1. Pehle se maujood users.json ka data safe read karo
             if (fs.existsSync(file)) {
-              try {
-                data = JSON.parse(fs.readFileSync(file, "utf8"));
-              } catch(e) {
-                console.log("Parsing error, creating base structure");
-              }
+              try { data = JSON.parse(fs.readFileSync(file, "utf8")); } catch(e) {}
             }
+            if (!data.users) data.users = {};
+            if (!data.videos) data.videos = { welcome: [], offline: [], expired: [], ads: [] };
             
-            // 2. Agar structure missing hai toh safeguard lagao taaki video links na udein
-            if (!data.videos) {
-              data.videos = { welcome: [], offline: [], expired: [], ads: [] };
-            }
-            if (!data.users) {
-              data.users = {};
-            }
-            
-            const custId = "${{ github.event.inputs.customer_id }}".trim().lower();
+            let selectedExisting = "${{ github.event.inputs.manage_existing }}".trim();
+            let typedNew = "${{ github.event.inputs.new_customer_id }}".trim().lower();
             const status = "${{ github.event.inputs.action_type }}";
             
-            // 3. Pehle wale data ko bina chhede, naya user ADD ya CHANGE karo
-            data.users[custId] = status;
+            let targetUser = "";
             
-            // 4. File ko wapas sundar format me save kar do
-            fs.writeFileSync(file, JSON.stringify(data, null, 2));
+            // Priority setup: Pehle check karo user ne naya naam toh nahi daala
+            if (typedNew !== "") {
+              targetUser = typedNew;
+            } else if (selectedExisting !== "" && !selectedExisting.includes("select from list")) {
+              targetUser = selectedExisting.toLowerCase();
+            }
+            
+            if (targetUser !== "") {
+              data.users[targetUser] = status;
+              fs.writeFileSync(file, JSON.stringify(data, null, 2));
+              console.log(`Successfully updated ${targetUser} to ${status}`);
+            } else {
+              console.log("No valid user selected or added. Skipping configuration.");
+            }
           '
 
-      - name: Commit and Push Changes Live
+      - name: Auto-Update Dropdown Choices for Next Run
+        run: |
+          node -e '
+            const fs = require("fs");
+            const yamlFile = ".github/workflows/admin_panel.yml";
+            const jsonFile = "users.json";
+            
+            if (!fs.existsSync(jsonFile) || !fs.existsSync(yamlFile)) return;
+            
+            let jsonData = JSON.parse(fs.readFileSync(jsonFile, "utf8"));
+            let currentUsers = Object.keys(jsonData.users || {});
+            
+            let yamlContent = fs.readFileSync(yamlFile, "utf8");
+            
+            // Automatic YAML content injection for generating options list dynamically
+            let baseOptions = ["-- select from list or leave blank --", "unknown_user"];
+            let combinedUsers = Array.from(new Set([...baseOptions, ...currentUsers]));
+            
+            let formattedOptions = combinedUsers.map(u => `        - ${u}`).join("\n");
+            
+            // Regex match replacement pattern
+            let regex = /options:\s*\n(\s*-\s*.*\n)+/m;
+            let updatedYaml = yamlContent.replace(regex, `options:\n${formattedOptions}\n`);
+            
+            fs.writeFileSync(yamlFile, updatedYaml);
+          '
+
+      - name: Commit Changes Live to Panel
         run: |
           git config --global user.name "GE-Admin-GUI"
           git config --global user.email "admin@ge-home.com"
-          git add users.json
-          git diff-index --quiet HEAD || git commit -m "GUI Management: ${{ github.event.inputs.customer_id }} set to ${{ github.event.inputs.action_type }}"
+          git add users.json .github/workflows/admin_panel.yml
+          git diff-index --quiet HEAD || git commit -m "GUI Registry System Updated Successfully"
           git push origin main
