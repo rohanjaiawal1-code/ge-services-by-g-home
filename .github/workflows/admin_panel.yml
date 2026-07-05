@@ -21,20 +21,34 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Update users.json GUI Engine
         run: |
           node -e '
             const fs = require("fs");
-            let data = JSON.parse(fs.readFileSync("users.json", "utf8"));
+            const file = "users.json";
+            let data = { videos: {}, users: {} };
+            
+            // Agar file pehle se hai toh read karo, nahi toh nayi banao
+            if (fs.existsSync(file)) {
+              try {
+                data = JSON.parse(fs.readFileSync(file, "utf8"));
+              } catch(e) {
+                console.log("Parsing error, resetting format safely");
+              }
+            }
+            
             if (!data.users) data.users = {};
+            if (!data.videos) data.videos = { welcome: [], offline: [], expired: [], ads: [] };
             
             const custId = "${{ github.event.inputs.customer_id }}".trim().lower();
             const status = "${{ github.event.inputs.action_type }}";
             
             data.users[custId] = status;
             
-            fs.writeFileSync("users.json", JSON.stringify(data, null, 2));
+            fs.writeFileSync(file, JSON.stringify(data, null, 2));
           '
 
       - name: Commit and Push Changes Live
@@ -42,5 +56,6 @@ jobs:
           git config --global user.name "GE-Admin-GUI"
           git config --global user.email "admin@ge-home.com"
           git add users.json
-          git commit -m "GUI Update: ${{ github.event.inputs.customer_id }} set to ${{ github.event.inputs.action_type }}"
-          git push
+          # Agar koi change nahi hua toh error na de
+          git diff-index --quiet HEAD || git commit -m "GUI Update: ${{ github.event.inputs.customer_id }} set to ${{ github.event.inputs.action_type }}"
+          git push origin main
