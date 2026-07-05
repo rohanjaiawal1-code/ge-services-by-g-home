@@ -3,19 +3,10 @@ name: GE Services Admin Panel GUI
 on:
   workflow_dispatch:
     inputs:
-      manage_existing:
-        description: 'LIST: Choose Existing User to Update'
-        required: false
-        type: choice
-        options:
-        - '-- select from list or leave blank --'
-        - unknown_user
-      
-      new_customer_id:
-        description: 'ADD NEW USER: Type Hostname here (If not in list)'
-        required: false
-        default: ''
-
+      user_id:
+        description: 'ADD OR UPDATE USER: Type Hostname / Device ID here'
+        required: true
+        default: 'unknown_user'
       action_type:
         description: 'SET PLAN STATUS'
         required: true
@@ -24,81 +15,44 @@ on:
         - active
         - expired
 
+permissions:
+  contents: write
+
 jobs:
   update-status:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Process GUI Selection
+      - name: Update users.json GUI Engine
         run: |
           node -e '
             const fs = require("fs");
             const file = "users.json";
-            let data = { videos: {}, users: {} };
+            let data = {};
             
             if (fs.existsSync(file)) {
               try { data = JSON.parse(fs.readFileSync(file, "utf8")); } catch(e) {}
             }
-            if (!data.users) data.users = {};
-            if (!data.videos) data.videos = { welcome: [], offline: [], expired: [], ads: [] };
             
-            let selectedExisting = "${{ github.event.inputs.manage_existing }}".trim();
-            let typedNew = "${{ github.event.inputs.new_customer_id }}".trim().lower();
+            if (!data.videos) data.videos = { welcome: [], offline: [], expired: [], ads: [] };
+            if (!data.users) data.users = {};
+            
+            const custId = "${{ github.event.inputs.user_id }}".trim().lower();
             const status = "${{ github.event.inputs.action_type }}";
             
-            let targetUser = "";
-            
-            // Priority setup: Pehle check karo user ne naya naam toh nahi daala
-            if (typedNew !== "") {
-              targetUser = typedNew;
-            } else if (selectedExisting !== "" && !selectedExisting.includes("select from list")) {
-              targetUser = selectedExisting.toLowerCase();
-            }
-            
-            if (targetUser !== "") {
-              data.users[targetUser] = status;
+            if (custId !== "") {
+              data.users[custId] = status;
               fs.writeFileSync(file, JSON.stringify(data, null, 2));
-              console.log(`Successfully updated ${targetUser} to ${status}`);
-            } else {
-              console.log("No valid user selected or added. Skipping configuration.");
+              console.log(`Successfully managed user: ${custId} as ${status}`);
             }
           '
 
-      - name: Auto-Update Dropdown Choices for Next Run
-        run: |
-          node -e '
-            const fs = require("fs");
-            const yamlFile = ".github/workflows/admin_panel.yml";
-            const jsonFile = "users.json";
-            
-            if (!fs.existsSync(jsonFile) || !fs.existsSync(yamlFile)) return;
-            
-            let jsonData = JSON.parse(fs.readFileSync(jsonFile, "utf8"));
-            let currentUsers = Object.keys(jsonData.users || {});
-            
-            let yamlContent = fs.readFileSync(yamlFile, "utf8");
-            
-            // Automatic YAML content injection for generating options list dynamically
-            let baseOptions = ["-- select from list or leave blank --", "unknown_user"];
-            let combinedUsers = Array.from(new Set([...baseOptions, ...currentUsers]));
-            
-            let formattedOptions = combinedUsers.map(u => `        - ${u}`).join("\n");
-            
-            // Regex match replacement pattern
-            let regex = /options:\s*\n(\s*-\s*.*\n)+/m;
-            let updatedYaml = yamlContent.replace(regex, `options:\n${formattedOptions}\n`);
-            
-            fs.writeFileSync(yamlFile, updatedYaml);
-          '
-
-      - name: Commit Changes Live to Panel
+      - name: Commit and Push Changes Live
         run: |
           git config --global user.name "GE-Admin-GUI"
           git config --global user.email "admin@ge-home.com"
-          git add users.json .github/workflows/admin_panel.yml
-          git diff-index --quiet HEAD || git commit -m "GUI Registry System Updated Successfully"
+          git add users.json
+          git diff-index --quiet HEAD || git commit -m "GUI Management: Updated ${{ github.event.inputs.user_id }}"
           git push origin main
