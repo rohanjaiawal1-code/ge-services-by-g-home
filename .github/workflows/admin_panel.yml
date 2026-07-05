@@ -4,11 +4,11 @@ on:
   workflow_dispatch:
     inputs:
       user_id:
-        description: 'ADD OR UPDATE USER: Type Hostname / Device ID here'
+        description: 'Customer Device ID'
         required: true
         default: 'unknown_user'
       action_type:
-        description: 'SET PLAN STATUS'
+        description: 'Status'
         required: true
         type: choice
         options:
@@ -25,34 +25,22 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Update users.json GUI Engine
+      - name: Force Update JSON
         run: |
           node -e '
             const fs = require("fs");
-            const file = "users.json";
-            let data = {};
-            
-            if (fs.existsSync(file)) {
-              try { data = JSON.parse(fs.readFileSync(file, "utf8")); } catch(e) {}
+            let data = { videos: { welcome: [], offline: [], expired: [], ads: [] }, users: {} };
+            if (fs.existsSync("users.json")) {
+              try { data = JSON.parse(fs.readFileSync("users.json", "utf8")); } catch(e) {}
             }
-            
-            if (!data.videos) data.videos = { welcome: [], offline: [], expired: [], ads: [] };
-            if (!data.users) data.users = {};
-            
-            const custId = "${{ github.event.inputs.user_id }}".trim().lower();
-            const status = "${{ github.event.inputs.action_type }}";
-            
-            if (custId !== "") {
-              data.users[custId] = status;
-              fs.writeFileSync(file, JSON.stringify(data, null, 2));
-              console.log(`Successfully managed user: ${custId} as ${status}`);
-            }
+            data.users["${{ github.event.inputs.user_id }}".toLowerCase()] = "${{ github.event.inputs.action_type }}";
+            fs.writeFileSync("users.json", JSON.stringify(data, null, 2));
           '
 
-      - name: Commit and Push Changes Live
+      - name: Push to Repo
         run: |
-          git config --global user.name "GE-Admin-GUI"
-          git config --global user.email "admin@ge-home.com"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add users.json
-          git diff-index --quiet HEAD || git commit -m "GUI Management: Updated ${{ github.event.inputs.user_id }}"
-          git push origin main
+          git commit -m "Update user status"
+          git push
