@@ -14,6 +14,7 @@ on:
         options:
         - active
         - expired
+        - new_trial
 
 permissions:
   contents: write
@@ -25,7 +26,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Force Update JSON
+      - name: Update JSON with 15 Days Auto-Trial
         run: |
           node -e '
             const fs = require("fs");
@@ -33,20 +34,41 @@ jobs:
             if (fs.existsSync("users.json")) {
               try { data = JSON.parse(fs.readFileSync("users.json", "utf8")); } catch(e) {}
             }
-            data.users["${{ github.event.inputs.user_id }}".toLowerCase()] = "${{ github.event.inputs.action_type }}";
+            
+            const uid = "${{ github.event.inputs.user_id }}".toLowerCase().strip();
+            const action = "${{ github.event.inputs.action_type }}";
+            
+            if (action === "new_trial") {
+              const now = new Date();
+              const expiry = new Date();
+              expiry.setDate(now.getDate() + 15); // 15 Days Trial Add Kiya
+              
+              data.users[uid] = {
+                status: "active",
+                type: "trial",
+                expiry_date: expiry.toISOString().split("T")[0] // YYYY-MM-DD format
+              };
+            } else {
+              // Manual Active ya Expired override ke liye
+              data.users[uid] = {
+                status: action,
+                type: "manual",
+                expiry_date: action === "active" ? "infinite" : "expired"
+              };
+            }
+            
             fs.writeFileSync("users.json", JSON.stringify(data, null, 2));
           '
 
-      # 🔥 Naya Step: Jo cloud par hi bina galti ke direct zip bana dega
-      - name: Create Automated Clean Kodi Zip
+      - name: Build Clean Addon Build
         run: |
           rm -f service.custom.lockdown.zip
-          zip -j service.custom.lockdown.zip addon.xml service.py
+          python3 -c "import zipfile; z = zipfile.ZipFile('service.custom.lockdown.zip', 'w', zipfile.ZIP_DEFLATED); z.write('addon.xml', 'addon.xml'); z.write('service.py', 'service.py'); z.close()"
 
       - name: Push to Repo
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add users.json service.custom.lockdown.zip
-          git commit -m "Update user status and build fresh zip" || echo "No changes to commit"
+          git commit -m "Update user status and temporal bounds" || echo "No changes"
           git push
