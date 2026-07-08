@@ -27,7 +27,8 @@
   "users": {
     "0000011111": {
       "username": "abhishek",
-      "status": "active"
+      "status": "expired",
+      "updated_at": "2026-07-08T07:07:49.223Z"
     }
   }
 }
