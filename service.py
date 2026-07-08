@@ -3,56 +3,45 @@ import xbmc, xbmcaddon, urllib.request, json
 addon = xbmcaddon.Addon()
 JSON_URL = "https://raw.githubusercontent.com/rohanjaiawal1-code/ge-services-by-g-home/main/users.json"
 
-def play_playlist(video_list):
-    playlist = xbmc.Playlist(xbmc.PLAYLIST_VIDEO)
-    playlist.clear()
-    for url in video_list:
-        playlist.add(url)
-    xbmc.Player().play(playlist)
+def play_video(url):
+    # यह तरीका सबसे सेफ है, यह एरर नहीं देगा
+    xbmc.executebuiltin(f'PlayMedia({url})')
 
 def run_automation():
     phone = addon.getSetting("user_phone")
     username = addon.getSetting("user_name")
     setup_done = addon.getSetting("setup_done")
 
-    # JSON डेटा लोड करें
     try:
         with urllib.request.urlopen(JSON_URL, timeout=10) as url:
             data = json.loads(url.read().decode())
     except:
-        # --- OFFLINE LOGIC ---
-        # स्वागत -> Ad -> Offline -> Ad -> Offline -> Ad -> Ad -> Ad -> Offline (Loop)
-        offline_seq = [
-            data['videos']['welcome'][0], data['videos']['ads'][0], 
-            data['videos']['offline'][0], data['videos']['ads'][1],
-            data['videos']['offline'][1], data['videos']['ads'][0],
-            data['videos']['ads'][1], data['videos']['ads'][0],
-            data['videos']['offline'][1]
-        ]
-        play_playlist(offline_seq)
+        # इंटरनेट नहीं है तो Offline वीडियो
+        play_video(data['videos']['offline'][0])
         return
 
-    # --- SETUP LOGIC (First Time) ---
+    # 1. SETUP (1 Time)
     if setup_done != "true":
-        play_playlist(data['videos']['setup'])
+        play_video(data['videos']['setup'][0])
         addon.setSetting("setup_done", "true")
         return
 
-    # --- ACTIVE USER LOGIC ---
+    # 2. ACTIVE USER
     if phone in data['users'] and data['users'][phone].get('username') == username:
         if data['users'][phone].get('status') == 'active':
-            # Welcome -> Ad -> Trial -> Ad -> Home
-            active_seq = [data['videos']['welcome'][0], data['videos']['ads'][0], data['videos']['trial'][0], data['videos']['ads'][1]]
-            play_playlist(active_seq)
-            xbmc.executebuiltin('ActivateWindow(Home)') # Navigation open
+            # Active है तो Welcome -> Ad -> Trial
+            play_video(data['videos']['welcome'][0])
+            xbmc.sleep(5000) # 5 सेकंड रुकें
+            play_video(data['videos']['ads'][0])
+            xbmc.sleep(5000)
+            play_video(data['videos']['trial'][0])
         else:
-            # --- EXPIRED LOGIC ---
-            # Ad -> Expired -> Expired -> Expired -> Ad (Loop)
-            expired_seq = [data['videos']['ads'][0], data['videos']['expired'][0], data['videos']['expired'][1], data['videos']['expired'][2], data['videos']['ads'][1]]
-            play_playlist(expired_seq)
+            # Expired है तो Expired लूप
+            play_video(data['videos']['expired'][0])
     else:
-        # Login Fail
-        xbmc.executebuiltin('Notification(GE, Login Failed, 5000)')
+        # गलत लॉगिन है
+        xbmc.executebuiltin('Notification(GE Error, Login Failed, 5000)')
 
-xbmc.sleep(3000)
+# Kodi स्टार्ट होते ही चलाएं
+xbmc.sleep(5000)
 run_automation()
