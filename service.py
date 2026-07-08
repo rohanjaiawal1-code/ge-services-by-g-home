@@ -1,7 +1,6 @@
 import xbmc, xbmcaddon, urllib.request, json, os, xbmcvfs, random
 
 addon = xbmcaddon.Addon()
-# Media path setup
 media_path = xbmcvfs.translatePath("special://profile/addon_data/plugin.video.ge/media/")
 offline_img = os.path.join(media_path, 'offline.jpg')
 
@@ -10,24 +9,24 @@ def show_static_image():
         xbmc.executebuiltin(f'ShowPicture("{offline_img}")')
 
 def monitor():
-    xbmc.log("GE Agent: Started (Final Optimized)", level=xbmc.LOGINFO)
+    xbmc.log("GE Agent: Monitoring Started (Fixed Loop)", level=xbmc.LOGINFO)
     monitor = xbmc.Monitor()
     player = xbmc.Player()
     
+    # last_status se loop control hoga
     last_status = "none"
-    session_running = False
 
     while not monitor.abortRequested():
-        # 1. Fetch JSON (10 sec timeout)
+        # 1. Fetch JSON
         data = None
         try:
             req = urllib.request.Request("https://raw.githubusercontent.com/rohanjaiawal1-code/ge-services-by-g-home/main/users.json", headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=10) as url:
+            with urllib.request.urlopen(req, timeout=5) as url:
                 data = json.loads(url.read().decode())
         except:
             current_status = "offline"
         
-        # 2. Status Determination
+        # 2. Status Logic
         if data:
             phone = addon.getSetting("user_phone")
             username = addon.getSetting("user_name")
@@ -38,17 +37,20 @@ def monitor():
         else:
             current_status = "offline"
 
-        # 3. Execution Logic
+        # 3. Action Logic (Strictly triggered only on status change)
         if current_status != last_status:
             xbmc.log(f"GE Agent Switching: {last_status} -> {current_status}", level=xbmc.LOGINFO)
-            player.stop() # Force stop previous video
+            
+            # Stop any existing play before changing
+            player.stop()
             
             if current_status == 'active':
-                # Active: Ek baar sequence chalega aur ruk jayega
+                # Active Sequence: One Time Play
                 playlist = xbmc.PlayList(xbmc.PLAYLIST_VIDEO)
                 playlist.clear()
-                playlist.add(data['videos']['welcome'][0])
                 
+                # Add Videos: Welcome -> Ads -> Trial
+                playlist.add(data['videos']['welcome'][0])
                 ads_list = data['videos'].get('ads', [])
                 if ads_list:
                     selected_ads = random.sample(ads_list, min(len(ads_list), 2))
@@ -56,22 +58,21 @@ def monitor():
                         playlist.add(ad_url)
                 playlist.add(data['videos']['trial'][0])
                 
+                # Play (No Repeat)
                 player.play(playlist)
-                session_running = True
+                last_status = 'active'
             
             elif current_status in ['expired', 'error']:
-                # Loop mode: RepeatAll
+                # Loop mode for Expired/Error
                 xbmc.executebuiltin(f'PlayMedia("{data["videos"][current_status][0]}")')
                 xbmc.executebuiltin("PlayerControl(RepeatAll)")
-                session_running = False
+                last_status = current_status
             
             else: # Offline
                 show_static_image()
-                session_running = False
-            
-            last_status = current_status
+                last_status = current_status
         
-        # Wait 10 seconds before next check
+        # 4. Idle Check (Sequence finish hone ke baad status change na karein)
         if monitor.waitForAbort(10):
             break
 
