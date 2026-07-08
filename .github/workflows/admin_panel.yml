@@ -1,14 +1,13 @@
-name: GE Services Admin Panel GUI
+name: GE Services Admin Panel
 
 on:
   workflow_dispatch:
     inputs:
       user_id:
-        description: 'User ID (Mobile Number or Username)'
+        description: 'User ID (Enter Mobile Number to Edit)'
         required: true
-        default: '0000000000'
       action_type:
-        description: 'Status (ON = active, OFF = expired)'
+        description: 'Status'
         required: true
         type: choice
         options:
@@ -25,26 +24,24 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Update JSON Status
+      - name: Update Existing User Status
         run: |
           node -e '
             const fs = require("fs");
-            let data = { videos: { welcome: [], offline: [], expired: [], ads: [] }, users: {} };
-            if (fs.existsSync("users.json")) {
-              try { data = JSON.parse(fs.readFileSync("users.json", "utf8")); } catch(e) {}
-            }
+            let data = JSON.parse(fs.readFileSync("users.json", "utf8"));
             
             const uid = "${{ github.event.inputs.user_id }}";
             const status = "${{ github.event.inputs.action_type }}";
             
-            // User entry create karein agar nahi hai toh
-            if (!data.users[uid]) {
-                data.users[uid] = { username: uid };
+            // LOGIC: Sirf tabhi update karein agar user pehle se list mein hai
+            if (data.users[uid]) {
+                data.users[uid].status = status;
+                data.users[uid].updated_at = new Date().toISOString();
+                console.log("User found and updated: " + uid);
+            } else {
+                console.log("Error: User " + uid + " not found in the list!");
+                process.exit(1); // Error show karega agar user nahi mila
             }
-            
-            // Status update (Active ya Expired)
-            data.users[uid].status = status;
-            data.users[uid].updated_at = new Date().toISOString();
             
             fs.writeFileSync("users.json", JSON.stringify(data, null, 2));
           '
@@ -59,5 +56,5 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add users.json service.custom.lockdown.zip
-          git commit -m "Update status for ${{ github.event.inputs.user_id }}: ${{ github.event.inputs.action_type }}" || echo "No changes"
+          git commit -m "Update status for ${{ github.event.inputs.user_id }} to ${{ github.event.inputs.action_type }}" || echo "No changes"
           git push
