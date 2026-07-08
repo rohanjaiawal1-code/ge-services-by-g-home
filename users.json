@@ -27,7 +27,8 @@
   "users": {
     "9876543210": {
       "username": "GE_User",
-      "status": "active"
+      "status": "expired",
+      "updated_at": "2026-07-08T11:21:52.942Z"
     }
   }
 }
