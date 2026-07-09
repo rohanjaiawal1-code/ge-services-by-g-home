@@ -1,24 +1,14 @@
-name: G HOME Status Controller
+name: G HOME Status Controller (Manual Only)
 
 on:
-  schedule:
-    - cron: '0 0 * * *' # रोज़ रात 12:00 बजे (Timer Mode) अपने आप चलेगा
-  workflow_dispatch: # गिटहब पर मैन्युअल बटन दबाकर चलाने के लिए
+  workflow_dispatch: # केवल मैन्युअल बटन दबाने पर चलेगा
     inputs:
-      toggle_mode:
-        description: 'Choose Action Mode'
-        required: true
-        default: 'manual'
-        type: choice
-        options:
-          - manual
-          - timer
       user_id:
-        description: '1. Enter User ID (Phone Number)'
+        description: 'Enter User ID (Phone Number)'
         required: true
         type: string
       mode:
-        description: '2. Select Mode (Status)'
+        description: 'Select Status Mode'
         required: true
         default: 'active'
         type: choice
@@ -26,10 +16,6 @@ on:
           - active
           - expired
           - error
-      update_date:
-        description: '3. Date When Update (Only for Timer Mode - YYYY-MM-DD)'
-        required: false
-        type: string
 
 jobs:
   update-status:
@@ -41,15 +27,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-python: '3.x'
+          python-version: '3.x'
 
-      - name: Run Status Updater Script
+      - name: Run Manual Status Updater
         env:
-          TOGGLE_MODE: ${{ github.event.inputs.toggle_mode }}
           USER_ID: ${{ github.event.inputs.user_id }}
           STATUS_MODE: ${{ github.event.inputs.mode }}
-          UPDATE_DATE: ${{ github.event.inputs.update_date }}
-          EVENT_NAME: ${{ github.event_name }}
         run: python update_users.py
 
       - name: Commit and Push Changes
@@ -57,4 +40,4 @@ jobs:
           git config --global user.name "G-Home-Bot"
           git config --global user.email "bot@g-home.services"
           git add users.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "GitHub Action: Status updated via Code Setup" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Manual Update: User ${{ github.event.inputs.user_id }} set to ${{ github.event.inputs.mode }}" && git push)
