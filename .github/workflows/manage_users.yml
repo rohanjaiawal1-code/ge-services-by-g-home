@@ -1,0 +1,122 @@
+name: "G-HOME Admin UI Panel"
+
+on:
+  workflow_dispatch:
+    inputs:
+      action_type:
+        description: 'क्या करना चाहते हैं? (Select Action)'
+        required: true
+        type: choice
+        options:
+          - new_user
+          - change_user_settings
+      user_id_phone:
+        description: '7. यूजर का मोबाइल नंबर / ID (User ID Phone)'
+        required: true
+        type: string
+      name:
+        description: '5. यूजर का नाम (Username)'
+        required: false
+        type: string
+      status:
+        description: '1. यूजर स्टेटस (Status)'
+        required: true
+        type: choice
+        options:
+          - active
+          - expired
+          - error
+      x_date_to_ends:
+        description: '4. कितने दिन बाकी हैं? (Days Left)'
+        required: true
+        default: '35'
+        type: string
+      plan_name:
+        description: '6. प्लान का नाम (Plan Name)'
+        required: true
+        default: 'Ganpatii Enterprise Dhamal 4 Special'
+        type: string
+      last_charge_day:
+        description: '8. आखिरी रिचार्ज दिन काउंट (Last Charge Day)'
+        required: true
+        default: '10'
+        type: string
+      ott_list:
+        description: '3. ओटीटी ऐप्स (OTT List - Comma Separated)'
+        required: true
+        default: 'Gmuvies, JioHotstar, Netflix, Amazon Prime, SonyLIV, Zee5'
+        type: string
+
+jobs:
+  update-json:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Process JSON Database
+        run: |
+          python - <<EOF
+          import json
+          import os
+
+          # Read GitHub inputs
+          action = "${{ github.event.inputs.action_type }}"
+          phone = "${{ github.event.inputs.user_id_phone }}".strip()
+          name = "${{ github.event.inputs.name }}".strip()
+          status = "${{ github.event.inputs.status }}"
+          days_left = int("${{ github.event.inputs.x_date_to_ends }}")
+          plan = "${{ github.event.inputs.plan_name }}".strip()
+          last_charge = int("${{ github.event.inputs.last_charge_day }}")
+          ott = [x.strip() for x in "${{ github.event.inputs.ott_list }}".split(",") if x.strip()]
+
+          # Load existing database
+          with open('users.json', 'r') as f:
+              db = json.load(f)
+
+          if action == 'new_user':
+              if phone in db['users']:
+                  print(f"Error: User {phone} already exists!")
+              else:
+                  db['users'][phone] = {
+                      "username": name if name else "New_GE_User",
+                      "status": status,
+                      "days_left": days_left,
+                      "last_charge_day": last_charge,
+                      "plan_info": plan,
+                      "ott_list": ott,
+                      "web_series": [],
+                      "movies": []
+                  }
+                  print(f"Success: Added new user {phone}")
+
+          elif action == 'change_user_settings':
+              if phone in db['users']:
+                  user = db['users'][phone]
+                  if name: user['username'] = name
+                  user['status'] = status
+                  user['days_left'] = days_left
+                  user['plan_info'] = plan
+                  user['last_charge_day'] = last_charge
+                  user['ott_list'] = ott
+                  print(f"Success: Updated settings for user {phone}")
+              else:
+                  print(f"Error: User {phone} not found!")
+
+          # Save database back
+          with open('users.json', 'w') as f:
+              json.dump(db, f, indent=2)
+          EOF
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "G-HOME Admin Bot"
+          git config --global user.email "admin-bot@ganpatii.enterprise"
+          git add users.json
+          git commit -m "Admin UI Panel: Updated user database" || exit 0
+          git push
