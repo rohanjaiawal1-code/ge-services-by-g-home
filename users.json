@@ -50,18 +50,16 @@
   },
   "users": {
     "9876543110": {
-      "username": "GE_User",
+      "username": "GE_user",
       "status": "active",
       "days_left": 35,
       "last_charge_day": 10,
-      "plan_info": "Ganpatii Enterprise Dhamal 4 Special",
+      "plan_info": "G HOME X PLUS",
       "ott_list": [
         "Gmuvies",
         "JioHotstar",
         "Netflix",
-        "Amazon Prime",
-        "SonyLIV",
-        "Zee5"
+        "sonyLIV"
       ],
       "web_series": [
         {
@@ -289,6 +287,11 @@
           ],
           "link": "https://cyper3.vrovegeta.workers.dev/?url=CxwRFR5JQ04UHAJeFw0XBA8cFE8CGwVfDBgACwwDBU4QAxQCBkcWER8WDQwKBRJPFgNYUV5KVFlVX0ZCUltTUUsABAARDhwUXllVVlRAX1ZRXE1WFxEVAFA-XzRbNDQlNyc6UVVDSgcKD0hJUlBRU1lLVVdUUkJGVE4WDAodUVBVXEBHVVkBBAtKCFhaCkdAAFlcVVhKClkFDk1HWl0GBlVKCQNQUkdWFwEIAB4HDQwTVkRHW1tQVVhFXVdFAQYkDAMAC1BbRUFeVVUrTUZLJB8BDRhLXUFZPkYIBB1bREheVV09AhwNSx8SAgUMBl1ZSVlTGV1aQhUMOAECCgYCTVxFRUhNARoZDUBCQkRdGA42GwUVESsEFghbRUcGGBlNUk4MFh0fDRgGGUhBRQ0NFR5OXUcABxwVDRwRHB0WUVFFCgUAPAEBWF9GXFRRU1MHBgpYVEsQBAANBRAcXgwQBwIL"
         }
+      ],
+      "visible_sections": [
+        "Live TV",
+        "GOTT",
+        "SETTINGS"
       ]
     }
   }
