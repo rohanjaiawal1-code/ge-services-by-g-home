@@ -50,18 +50,15 @@
   },
   "users": {
     "9876543110": {
-      "username": "GE_User",
+      "username": "GE_user",
       "status": "active",
       "days_left": 35,
       "last_charge_day": 10,
-      "plan_info": "Ganpatii Enterprise Dhamal 4 Special",
+      "plan_info": "G HOME X PLUS",
       "ott_list": [
         "Gmuvies",
         "JioHotstar",
-        "Netflix",
-        "Amazon Prime",
-        "SonyLIV",
-        "Zee5"
+        "Netflix"
       ],
       "web_series": [
         {
